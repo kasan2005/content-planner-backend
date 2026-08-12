@@ -47,7 +47,7 @@ Target audience: ${targetAudience}
 Content goal: ${contentGoal}
 Tone of voice: ${toneOfVoice}
 
-Reply with ONLY valid JSON, no extra text, no markdown code fences, in exactly this shape:
+Reply with ONLY valid JSON, no extra text, in exactly this shape:
 
 {
   "days": [
@@ -73,8 +73,9 @@ Reply with ONLY valid JSON, no extra text, no markdown code fences, in exactly t
         "X-Title": "Weekly Content Planner",
       },
       body: JSON.stringify({
-        // A free model on OpenRouter. See openrouter.ai/models?max_price=0 for others.
-        model: "meta-llama/llama-3.3-70b-instruct:free",
+        // "openrouter/free" auto-picks whichever free model is currently working,
+        // so this keeps working even when individual free models rotate out.
+        model: "openrouter/free",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
       }),
