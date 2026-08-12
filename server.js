@@ -1,7 +1,7 @@
 // server.js
 // This is your backend. It does 3 things:
 // 1. Waits for your Lovable app to send it the 5 form answers
-// 2. Asks the free Groq AI to write a 7-day content plan
+// 2. Asks a free AI model on OpenRouter to write a 7-day content plan
 // 3. Sends that plan back to your Lovable app
 
 const express = require("express");
@@ -47,7 +47,7 @@ Target audience: ${targetAudience}
 Content goal: ${contentGoal}
 Tone of voice: ${toneOfVoice}
 
-Reply with ONLY valid JSON, no extra text, in exactly this shape:
+Reply with ONLY valid JSON, no extra text, no markdown code fences, in exactly this shape:
 
 {
   "days": [
@@ -61,29 +61,36 @@ Reply with ONLY valid JSON, no extra text, in exactly this shape:
   ]
 }`;
 
-    // Call the Groq AI (this uses the free API key stored safely on Render)
-    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    // Call the OpenRouter AI (this uses the free API key stored safely on Render)
+    const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        // These two headers are required by OpenRouter's free tier. The value
+        // doesn't need to be a real working site, just a text identifier.
+        "HTTP-Referer": "https://weeklycontentplanner.lovable.app",
+        "X-Title": "Weekly Content Planner",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        // A free model on OpenRouter. See openrouter.ai/models?max_price=0 for others.
+        model: "meta-llama/llama-3.3-70b-instruct:free",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
-        response_format: { type: "json_object" },
       }),
     });
 
-    if (!groqResponse.ok) {
-      const errText = await groqResponse.text();
-      console.error("Groq API error:", errText);
+    if (!orResponse.ok) {
+      const errText = await orResponse.text();
+      console.error("OpenRouter API error:", errText);
       return res.status(502).json({ error: "The AI service failed to respond. Try again." });
     }
 
-    const groqData = await groqResponse.json();
-    const aiText = groqData.choices[0].message.content;
+    const orData = await orResponse.json();
+    let aiText = orData.choices[0].message.content;
+
+    // Some free models wrap JSON in ```json code fences — strip those if present
+    aiText = aiText.trim().replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "");
 
     // The AI replies as a JSON string, so we turn it into a real object
     const plan = JSON.parse(aiText);
